@@ -150,10 +150,17 @@ if arquivo:
                 
         coluna_status = st.selectbox("Qual é a coluna de Status?", df.columns, index=idx_guess)
         
+        # --- NOVO: UNIFICAR CONTATO CLIENTE E VISITA AGENDADA ---
+        mask_unificar = df[coluna_status].astype(str).str.upper().isin([
+            "VISITA_AGENDADA", "VISITA AGENDADA", "CONTATO_CLIENTE", "CONTATO CLIENTE"
+        ])
+        df.loc[mask_unificar, coluna_status] = "CONTATO CLIENTE / VISITA AGENDADA"
+        # --------------------------------------------------------
+
         status_unicos = sorted(df[coluna_status].dropna().astype(str).unique())
         
         # Define os valores padrão procurados
-        alvos = ["SOLUCIONADO", "VISITA_AGENDADA", "CONTATO_CLIENTE", "VISITA AGENDADA", "CONTATO CLIENTE"]
+        alvos = ["SOLUCIONADO", "CONTATO CLIENTE / VISITA AGENDADA"]
         status_default = [s for s in status_unicos if any(alvo in str(s).upper() for alvo in alvos)]
         
         status_sel = st.multiselect(
