@@ -138,6 +138,30 @@ if arquivo:
         
         incluir_vazios = st.checkbox("Incluir registros sem data de fechamento", value=True)
 
+    # NOVO: Filtro de Status
+    with st.sidebar.expander("📌 Status / Situação", expanded=True):
+        # Tenta descobrir automaticamente qual é a coluna de status
+        idx_guess = 0
+        for i, col in enumerate(df.columns):
+            amostra = df[col].dropna().astype(str).str.upper()
+            if amostra.str.contains("SOLUCIONADO|VISITA_AGENDADA|CONTATO_CLIENTE|VISITA AGENDADA|CONTATO CLIENTE", regex=True).any():
+                idx_guess = i
+                break
+                
+        coluna_status = st.selectbox("Qual é a coluna de Status?", df.columns, index=idx_guess)
+        
+        status_unicos = sorted(df[coluna_status].dropna().astype(str).unique())
+        
+        # Define os valores padrão procurados
+        alvos = ["SOLUCIONADO", "VISITA_AGENDADA", "CONTATO_CLIENTE", "VISITA AGENDADA", "CONTATO CLIENTE"]
+        status_default = [s for s in status_unicos if any(alvo in str(s).upper() for alvo in alvos)]
+        
+        status_sel = st.multiselect(
+            "Selecione os Status para análise:", 
+            options=status_unicos, 
+            default=status_default if status_default else status_unicos
+        )
+
     tecnicos = sorted(df[COL_TECNICO].dropna().unique())
     servicos = sorted(df[COL_SERVICO].dropna().unique())
 
@@ -160,15 +184,20 @@ if arquivo:
                 servicos_sel.append(s)
 
     # --- LÓGICA DE APLICAÇÃO DOS FILTROS ---
+    # Ajusta as horas para pegar o dia inteiro
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1, seconds=-1)
+
     mask_tecnico = df[COL_TECNICO].isin(tecnicos_sel)
     mask_servico = df[COL_SERVICO].isin(servicos_sel)
+    mask_status = df[coluna_status].isin(status_sel)
     
     if incluir_vazios:
         mask_data = df[COL_FECH].dt.date.isin(dias_validos) | df[COL_FECH].isna()
     else:
         mask_data = df[COL_FECH].dt.date.isin(dias_validos)
 
-    df_filtrado = df[mask_tecnico & mask_servico & mask_data].copy()
+    df_filtrado = df[mask_tecnico & mask_servico & mask_data & mask_status].copy()
 
     # --- SEÇÃO: GERENCIAR ROTAS ---
     st.sidebar.header("🗺️ Gerenciar Rotas")
@@ -528,6 +557,7 @@ if arquivo:
 
     mostrar = [
         "ROTA_PERSONALIZADA",
+        coluna_status, # <--- AQUI: Coluna de status adicionada para exibir na tabela
         COL_BAIRRO,
         COL_TECNICO,
         COL_SERVICO,
