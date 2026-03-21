@@ -95,6 +95,25 @@ if arquivo:
 
     st.sidebar.header("🔎 Filtros")
 
+    # Filtro de Data (Calendário)
+    with st.sidebar.expander("📅 Período (Data de Fechamento)", expanded=True):
+        valid_dates = df[COL_FECH].dropna()
+        if not valid_dates.empty:
+            min_date = valid_dates.min().date()
+            max_date = valid_dates.max().date()
+        else:
+            min_date = datetime.today().date()
+            max_date = datetime.today().date()
+
+        data_selecionada = st.date_input(
+            "Selecione o período:",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date
+        )
+        
+        incluir_vazios = st.checkbox("Incluir registros sem data de fechamento", value=True)
+
     tecnicos = sorted(df[COL_TECNICO].dropna().unique())
     servicos = sorted(df[COL_SERVICO].dropna().unique())
 
@@ -115,6 +134,30 @@ if arquivo:
         for s in servicos:
             if st.checkbox(s, value=marcar_todos_serv, key=f"serv_{s}"):
                 servicos_sel.append(s)
+
+    # --- LÓGICA DE APLICAÇÃO DOS FILTROS ---
+    if len(data_selecionada) == 2:
+        start_date, end_date = data_selecionada
+    elif len(data_selecionada) == 1:
+        start_date = data_selecionada[0]
+        end_date = data_selecionada[0]
+    else:
+        start_date = min_date
+        end_date = max_date
+
+    # Ajusta as horas para pegar o dia inteiro
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date) + pd.Timedelta(days=1, seconds=-1)
+
+    mask_tecnico = df[COL_TECNICO].isin(tecnicos_sel)
+    mask_servico = df[COL_SERVICO].isin(servicos_sel)
+    
+    if incluir_vazios:
+        mask_data = ((df[COL_FECH] >= start_date) & (df[COL_FECH] <= end_date)) | df[COL_FECH].isna()
+    else:
+        mask_data = (df[COL_FECH] >= start_date) & (df[COL_FECH] <= end_date)
+
+    df_filtrado = df[mask_tecnico & mask_servico & mask_data].copy()
 
     # --- SEÇÃO: GERENCIAR ROTAS ---
     st.sidebar.header("🗺️ Gerenciar Rotas")
@@ -208,11 +251,6 @@ if arquivo:
             st.session_state['rotas_personalizadas'] = {}
             salvar_rotas(st.session_state['rotas_personalizadas']) # Salva no arquivo (limpa ele)
             st.rerun()
-
-    df_filtrado = df[
-        df[COL_TECNICO].isin(tecnicos_sel) &
-        df[COL_SERVICO].isin(servicos_sel)
-    ].copy()
 
     # --- MAPEAMENTO DA ROTA NO DATAFRAME ---
     def obter_rota(bairro):
