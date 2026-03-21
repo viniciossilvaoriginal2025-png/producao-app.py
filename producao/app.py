@@ -32,6 +32,12 @@ def salvar_rotas(rotas):
 if 'rotas_personalizadas' not in st.session_state:
     st.session_state['rotas_personalizadas'] = carregar_rotas()
 
+# Mapeamento de Cores para o Status
+CORES_STATUS = {
+    "SOLUCIONADO": "#2ecc71", # Verde
+    "CONTATO CLIENTE / VISITA AGENDADA": "#f39c12" # Laranja
+}
+
 arquivo = st.file_uploader("Enviar arquivo Excel", type=["xlsx"])
 
 if arquivo:
@@ -320,38 +326,32 @@ if arquivo:
 
     st.subheader("👷 Produção por Técnico")
 
-    prod_tecnico = df_filtrado.groupby(COL_TECNICO).size().sort_values(ascending=False)
+    if not df_filtrado.empty:
+        # Agrupamento separando por Status
+        df_tecnicos_status = df_filtrado.groupby([COL_TECNICO, coluna_status]).size().reset_index(name="Quantidade")
+        ordem_tec = df_filtrado[COL_TECNICO].value_counts().index.tolist()
 
-    st.dataframe(prod_tecnico)
-    
-    # Converte para DataFrame para usar no Plotly
-    df_tecnicos = prod_tecnico.reset_index()
-    df_tecnicos.columns = ["Técnico", "Quantidade"]
+        # Tabela cruzada com Status
+        tab_tec = pd.crosstab(df_filtrado[COL_TECNICO], df_filtrado[coluna_status], margins=True, margins_name="TOTAL")
+        tab_tec = tab_tec.reindex(index=ordem_tec + ["TOTAL"]).fillna(0).astype(int)
+        st.dataframe(tab_tec, use_container_width=True)
 
-    # Calcula o total para exibir no gráfico
-    total_somado_tec = df_tecnicos["Quantidade"].sum()
-
-    # Cria o gráfico de colunas com o total acima
-    fig_tecnicos = px.bar(
-        df_tecnicos,
-        x="Técnico",
-        y="Quantidade",
-        text="Quantidade",
-        title=f"Total de procedimentos exibidos: {total_somado_tec}"
-    )
-    
-    # Posiciona o texto do lado de fora (acima) da coluna
-    fig_tecnicos.update_traces(textposition='outside')
-    
-    # Dá uma margem extra no topo para o número não cortar e inclina os textos
-    max_y_tec = df_tecnicos["Quantidade"].max() if not df_tecnicos.empty else 10
-    fig_tecnicos.update_layout(
-        yaxis_range=[0, max_y_tec * 1.15],
-        xaxis_tickangle=-45,
-        margin=dict(t=40)
-    )
-
-    st.plotly_chart(fig_tecnicos, use_container_width=True)
+        # Gráfico colorido por Status
+        total_somado_tec = df_tecnicos_status["Quantidade"].sum()
+        fig_tecnicos = px.bar(
+            df_tecnicos_status,
+            x=COL_TECNICO,
+            y="Quantidade",
+            color=coluna_status,
+            text="Quantidade",
+            title=f"Total de procedimentos exibidos: {total_somado_tec}",
+            category_orders={COL_TECNICO: ordem_tec},
+            color_discrete_map=CORES_STATUS
+        )
+        
+        fig_tecnicos.update_traces(textposition='inside')
+        fig_tecnicos.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+        st.plotly_chart(fig_tecnicos, use_container_width=True)
 
     # =========================
     # PRODUÇÃO POR SERVIÇO
@@ -359,9 +359,11 @@ if arquivo:
 
     st.subheader("🛠️ Produção por Serviço")
 
-    prod_servico = df_filtrado.groupby(COL_SERVICO).size().sort_values(ascending=False)
-
-    st.dataframe(prod_servico)
+    if not df_filtrado.empty:
+        ordem_serv = df_filtrado[COL_SERVICO].value_counts().index.tolist()
+        tab_serv = pd.crosstab(df_filtrado[COL_SERVICO], df_filtrado[coluna_status], margins=True, margins_name="TOTAL")
+        tab_serv = tab_serv.reindex(index=ordem_serv + ["TOTAL"]).fillna(0).astype(int)
+        st.dataframe(tab_serv, use_container_width=True)
 
     # =========================
     # BAIRROS
@@ -369,73 +371,67 @@ if arquivo:
 
     st.subheader("🏘️ Atendimentos por Bairro")
 
-    bairro_counts = df_filtrado[COL_BAIRRO].value_counts()
-    bairro_counts = bairro_counts[bairro_counts >= 1]
+    if not df_filtrado.empty:
+        # Filtrar bairros com >= 5 atendimentos no total
+        bairro_totals = df_filtrado[COL_BAIRRO].value_counts()
+        bairros_validos = bairro_totals[bairro_totals >= 5].index.tolist()
+        df_bairros_filtrado = df_filtrado[df_filtrado[COL_BAIRRO].isin(bairros_validos)]
 
-    st.dataframe(bairro_counts)
-    
-    # Converte para DataFrame para usar no Plotly
-    df_bairros = bairro_counts.reset_index()
-    df_bairros.columns = ["Bairro", "Quantidade"]
+        if not df_bairros_filtrado.empty:
+            df_bairros_status = df_bairros_filtrado.groupby([COL_BAIRRO, coluna_status]).size().reset_index(name="Quantidade")
+            
+            # Tabela cruzada
+            tab_bairros = pd.crosstab(df_bairros_filtrado[COL_BAIRRO], df_bairros_filtrado[coluna_status], margins=True, margins_name="TOTAL")
+            tab_bairros = tab_bairros.reindex(index=bairros_validos + ["TOTAL"]).fillna(0).astype(int)
+            st.dataframe(tab_bairros, use_container_width=True)
 
-    # Calcula o total para exibir no gráfico
-    total_somado = df_bairros["Quantidade"].sum()
-
-    # Cria o gráfico de colunas com o total acima
-    fig_bairros = px.bar(
-        df_bairros,
-        x="Bairro",
-        y="Quantidade",
-        text="Quantidade",
-        title=f"Total de procedimentos exibidos: {total_somado}"
-    )
-    
-    # Posiciona o texto do lado de fora (acima) da coluna
-    fig_bairros.update_traces(textposition='outside')
-    
-    # Dá uma margem extra no topo para o número não cortar e inclina os textos
-    max_y = df_bairros["Quantidade"].max() if not df_bairros.empty else 10
-    fig_bairros.update_layout(
-        yaxis_range=[0, max_y * 1.15],
-        xaxis_tickangle=-45,
-        margin=dict(t=40)
-    )
-
-    st.plotly_chart(fig_bairros, use_container_width=True)
+            # Gráfico colorido
+            total_somado_bairros = df_bairros_status["Quantidade"].sum()
+            fig_bairros = px.bar(
+                df_bairros_status,
+                x=COL_BAIRRO,
+                y="Quantidade",
+                color=coluna_status,
+                text="Quantidade",
+                title=f"Total de procedimentos exibidos: {total_somado_bairros}",
+                category_orders={COL_BAIRRO: bairros_validos},
+                color_discrete_map=CORES_STATUS
+            )
+            
+            fig_bairros.update_traces(textposition='inside')
+            fig_bairros.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+            st.plotly_chart(fig_bairros, use_container_width=True)
 
     # =========================
     # NOVA SEÇÃO — PRODUÇÃO POR ROTA PERSONALIZADA
     # =========================
     
-    if st.session_state['rotas_personalizadas']:
+    if st.session_state['rotas_personalizadas'] and not df_filtrado.empty:
         st.subheader("🗺️ Atendimentos por Rota (Personalizada)")
 
-        rota_counts = df_filtrado["ROTA_PERSONALIZADA"].value_counts().reset_index()
-        rota_counts.columns = ["Rota", "Quantidade"]
+        df_rotas_status = df_filtrado.groupby(["ROTA_PERSONALIZADA", coluna_status]).size().reset_index(name="Quantidade")
+        ordem_rotas = df_filtrado["ROTA_PERSONALIZADA"].value_counts().index.tolist()
 
-        total_somado_rotas = rota_counts["Quantidade"].sum()
+        if not df_rotas_status.empty:
+            total_somado_rotas = df_rotas_status["Quantidade"].sum()
 
-        fig_rotas = px.bar(
-            rota_counts,
-            x="Rota",
-            y="Quantidade",
-            text="Quantidade",
-            title=f"Total de procedimentos por Rota: {total_somado_rotas}"
-        )
-        
-        fig_rotas.update_traces(textposition='outside')
-        
-        max_y_rotas = rota_counts["Quantidade"].max() if not rota_counts.empty else 10
-        fig_rotas.update_layout(
-            yaxis_range=[0, max_y_rotas * 1.15],
-            xaxis_tickangle=-45,
-            margin=dict(t=40)
-        )
-
-        st.plotly_chart(fig_rotas, use_container_width=True)
+            fig_rotas = px.bar(
+                df_rotas_status,
+                x="Rota",
+                y="Quantidade",
+                color=coluna_status,
+                text="Quantidade",
+                title=f"Total de procedimentos por Rota: {total_somado_rotas}",
+                category_orders={"ROTA_PERSONALIZADA": ordem_rotas},
+                color_discrete_map=CORES_STATUS
+            )
+            
+            fig_rotas.update_traces(textposition='inside')
+            fig_rotas.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+            st.plotly_chart(fig_rotas, use_container_width=True)
 
         # Matriz Técnico x Rota
-        st.markdown("**Matriz Técnico × Rota**")
+        st.markdown("**Matriz Técnico × Rota (Total Geral)**")
         matriz_rota = pd.crosstab(
             df_filtrado[COL_TECNICO],
             df_filtrado["ROTA_PERSONALIZADA"],
@@ -444,35 +440,45 @@ if arquivo:
         st.dataframe(matriz_rota, use_container_width=True)
 
     # =========================
-    # NOVO — PROCEDIMENTOS POR BAIRRO
+    # PROCEDIMENTOS POR BAIRRO
     # =========================
 
     st.subheader("🛠️ Procedimentos por Bairro")
 
-    proc_bairro = pd.crosstab(
-        df_filtrado[COL_BAIRRO],
-        df_filtrado[COL_SERVICO]
-    )
+    if not df_filtrado.empty:
+        proc_bairro = pd.crosstab(
+            df_filtrado[COL_BAIRRO],
+            df_filtrado[COL_SERVICO]
+        )
+        st.dataframe(proc_bairro, use_container_width=True)
 
-    st.dataframe(proc_bairro, use_container_width=True)
+        bairro_sel_proc = st.selectbox(
+            "Selecionar bairro para ver procedimentos",
+            sorted(df_filtrado[COL_BAIRRO].unique())
+        )
 
-    bairro_sel_proc = st.selectbox(
-        "Selecionar bairro para ver procedimentos",
-        sorted(df_filtrado[COL_BAIRRO].unique())
-    )
+        df_bairro_proc = df_filtrado[df_filtrado[COL_BAIRRO] == bairro_sel_proc]
+        
+        if not df_bairro_proc.empty:
+            df_ranking_proc = df_bairro_proc.groupby([COL_SERVICO, coluna_status]).size().reset_index(name="Quantidade")
+            ordem_proc = df_bairro_proc[COL_SERVICO].value_counts().index.tolist()
 
-    df_bairro_proc = df_filtrado[df_filtrado[COL_BAIRRO] == bairro_sel_proc]
+            tab_proc = pd.crosstab(df_bairro_proc[COL_SERVICO], df_bairro_proc[coluna_status], margins=True, margins_name="TOTAL")
+            tab_proc = tab_proc.reindex(index=ordem_proc + ["TOTAL"]).fillna(0).astype(int)
+            st.dataframe(tab_proc, use_container_width=True)
 
-    ranking_proc = (
-        df_bairro_proc[COL_SERVICO]
-        .value_counts()
-        .reset_index()
-    )
-
-    ranking_proc.columns = ["Procedimento", "Quantidade"]
-
-    st.dataframe(ranking_proc, use_container_width=True)
-    st.bar_chart(ranking_proc.set_index("Procedimento"))
+            fig_proc = px.bar(
+                df_ranking_proc, 
+                x=COL_SERVICO, 
+                y="Quantidade", 
+                color=coluna_status, 
+                text="Quantidade", 
+                category_orders={COL_SERVICO: ordem_proc}, 
+                color_discrete_map=CORES_STATUS
+            )
+            fig_proc.update_traces(textposition='inside')
+            fig_proc.update_layout(barmode='stack')
+            st.plotly_chart(fig_proc, use_container_width=True)
 
     # =========================
     # MATRIZ TÉCNICO × BAIRRO
@@ -480,12 +486,12 @@ if arquivo:
 
     st.subheader("🧭 Técnicos por Bairro (matriz de atuação)")
 
-    matriz = pd.crosstab(
-        df_filtrado[COL_TECNICO],
-        df_filtrado[COL_BAIRRO]
-    )
-
-    st.dataframe(matriz, use_container_width=True)
+    if not df_filtrado.empty:
+        matriz = pd.crosstab(
+            df_filtrado[COL_TECNICO],
+            df_filtrado[COL_BAIRRO]
+        )
+        st.dataframe(matriz, use_container_width=True)
 
     # =========================
     # ATUAÇÃO POR ROTA (BAIRROS DO TÉCNICO)
@@ -499,36 +505,30 @@ if arquivo:
             sorted(df_filtrado[COL_TECNICO].unique())
         )
 
-        # Filtra apenas os dados do técnico selecionado
         df_tec_rota = df_filtrado[df_filtrado[COL_TECNICO] == tec_rota_sel]
         
-        # Conta a quantidade por bairro
-        rota_ranking = df_tec_rota[COL_BAIRRO].value_counts().reset_index()
-        rota_ranking.columns = ["Bairro", "Quantidade"]
+        if not df_tec_rota.empty:
+            df_rota_ranking = df_tec_rota.groupby([COL_BAIRRO, coluna_status]).size().reset_index(name="Quantidade")
+            ordem_bairros_tec = df_tec_rota[COL_BAIRRO].value_counts().index.tolist()
 
-        # Calcula o total para o título do gráfico
-        total_rota = rota_ranking["Quantidade"].sum()
+            tab_rota_tec = pd.crosstab(df_tec_rota[COL_BAIRRO], df_tec_rota[coluna_status], margins=True, margins_name="TOTAL")
+            tab_rota_tec = tab_rota_tec.reindex(index=ordem_bairros_tec + ["TOTAL"]).fillna(0).astype(int)
+            st.dataframe(tab_rota_tec, use_container_width=True)
 
-        st.dataframe(rota_ranking, use_container_width=True)
+            total_rota = df_rota_ranking["Quantidade"].sum()
 
-        # Cria o gráfico interativo se houver dados
-        if not rota_ranking.empty:
             fig_rota = px.bar(
-                rota_ranking,
-                x="Bairro",
+                df_rota_ranking,
+                x=COL_BAIRRO,
                 y="Quantidade",
+                color=coluna_status,
                 text="Quantidade",
-                title=f"Total de atendimentos de {tec_rota_sel} exibidos: {total_rota}"
+                title=f"Total de atendimentos de {tec_rota_sel} exibidos: {total_rota}",
+                category_orders={COL_BAIRRO: ordem_bairros_tec},
+                color_discrete_map=CORES_STATUS
             )
-            fig_rota.update_traces(textposition='outside')
-            
-            # Ajusta a escala e margens
-            max_y_rota = rota_ranking["Quantidade"].max()
-            fig_rota.update_layout(
-                yaxis_range=[0, max_y_rota * 1.15],
-                xaxis_tickangle=-45,
-                margin=dict(t=40)
-            )
+            fig_rota.update_traces(textposition='inside')
+            fig_rota.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
             st.plotly_chart(fig_rota, use_container_width=True)
 
     # =========================
@@ -564,7 +564,7 @@ if arquivo:
 
     mostrar = [
         "ROTA_PERSONALIZADA",
-        coluna_status, # <--- AQUI: Coluna de status adicionada para exibir na tabela
+        coluna_status,
         COL_BAIRRO,
         COL_TECNICO,
         COL_SERVICO,
@@ -573,7 +573,22 @@ if arquivo:
         "TEMPO_DHMS"
     ]
 
-    st.dataframe(detalhe[mostrar], height=450)
+    # Função para colorir a coluna de Status
+    def colorir_status(val):
+        if val == 'SOLUCIONADO':
+            return 'background-color: #d4edda; color: #155724' # Verde claro
+        elif val == 'CONTATO CLIENTE / VISITA AGENDADA':
+            return 'background-color: #fff3cd; color: #856404' # Amarelo claro
+        return ''
+
+    # Aplica o estilo na tabela
+    try:
+        df_estilizado = detalhe[mostrar].style.map(colorir_status, subset=[coluna_status])
+    except AttributeError:
+        # Fallback para versões anteriores do Pandas
+        df_estilizado = detalhe[mostrar].style.applymap(colorir_status, subset=[coluna_status])
+
+    st.dataframe(df_estilizado, height=450)
 
     # =========================
     # DOWNLOAD LISTA
@@ -619,9 +634,9 @@ if arquivo:
 
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             resumo.to_excel(writer, sheet_name="Resumo", index=False)
-            prod_tecnico.to_excel(writer, sheet_name="Produção Técnico")
-            bairro_counts.to_excel(writer, sheet_name="Produção Bairro")
-            matriz.to_excel(writer, sheet_name="Tecnico x Bairro")
+            if 'tab_tec' in locals(): tab_tec.to_excel(writer, sheet_name="Produção Técnico")
+            if 'tab_bairros' in locals(): tab_bairros.to_excel(writer, sheet_name="Produção Bairro")
+            if 'matriz_rota' in locals(): matriz_rota.to_excel(writer, sheet_name="Tecnico x Bairro")
 
         buffer.seek(0)
 
