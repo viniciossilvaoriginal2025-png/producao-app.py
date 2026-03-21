@@ -416,13 +416,14 @@ if arquivo:
 
             fig_rotas = px.bar(
                 df_rotas_status,
-                x="Rota",
+                x="ROTA_PERSONALIZADA",  # CORRIGIDO: Nome da coluna correto para o eixo X
                 y="Quantidade",
                 color=coluna_status,
                 text="Quantidade",
                 title=f"Total de procedimentos por Rota: {total_somado_rotas}",
                 category_orders={"ROTA_PERSONALIZADA": ordem_rotas},
-                color_discrete_map=CORES_STATUS
+                color_discrete_map=CORES_STATUS,
+                labels={"ROTA_PERSONALIZADA": "Rota"} # Adiciona o rótulo legível
             )
             
             fig_rotas.update_traces(textposition='outside')
