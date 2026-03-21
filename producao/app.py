@@ -127,7 +127,7 @@ if arquivo:
     st.subheader("🏘️ Atendimentos por Bairro")
 
     bairro_counts = df_filtrado[COL_BAIRRO].value_counts()
-    bairro_counts = bairro_counts[bairro_counts >= 1]
+    bairro_counts = bairro_counts[bairro_counts >= 5]
 
     st.dataframe(bairro_counts)
     
@@ -135,12 +135,16 @@ if arquivo:
     df_bairros = bairro_counts.reset_index()
     df_bairros.columns = ["Bairro", "Quantidade"]
 
+    # Calcula o total para exibir no gráfico
+    total_somado = df_bairros["Quantidade"].sum()
+
     # Cria o gráfico de colunas com o total acima
     fig_bairros = px.bar(
         df_bairros,
         x="Bairro",
         y="Quantidade",
-        text="Quantidade"
+        text="Quantidade",
+        title=f"Total de procedimentos exibidos: {total_somado}"
     )
     
     # Posiciona o texto do lado de fora (acima) da coluna
@@ -151,7 +155,7 @@ if arquivo:
     fig_bairros.update_layout(
         yaxis_range=[0, max_y * 1.15],
         xaxis_tickangle=-45,
-        margin=dict(t=20)
+        margin=dict(t=40)
     )
 
     st.plotly_chart(fig_bairros, use_container_width=True)
