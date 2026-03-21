@@ -158,12 +158,13 @@ if arquivo:
                     qtd_atual = dados_atuais.get("qtd_tecnicos", 1)
                     bairros_atuais = dados_atuais.get("bairros", [])
 
-                edit_nome = st.text_input("Renomear Rota", value=rota_para_editar, key="edit_nome")
-                edit_qtd = st.number_input("Editar Quantidade de Técnicos", min_value=1, value=qtd_atual, step=1, key="edit_qtd")
+                # Adicionando a rota_para_editar nas chaves para forçar a atualização dos campos quando a rota selecionada mudar
+                edit_nome = st.text_input("Renomear Rota", value=rota_para_editar, key=f"edit_nome_{rota_para_editar}")
+                edit_qtd = st.number_input("Editar Quantidade de Técnicos", min_value=1, value=qtd_atual, step=1, key=f"edit_qtd_{rota_para_editar}")
                 
                 # Garante que os bairros já selecionados estejam nas opções para evitar erros no Streamlit
                 opcoes_bairros_edit = sorted(list(set(bairros_unicos + bairros_atuais)))
-                edit_bairros = st.multiselect("Editar Bairros", opcoes_bairros_edit, default=bairros_atuais, key="edit_bairros")
+                edit_bairros = st.multiselect("Editar Bairros", opcoes_bairros_edit, default=bairros_atuais, key=f"edit_bairros_{rota_para_editar}")
 
                 col_salvar, col_excluir = st.columns(2)
                 
