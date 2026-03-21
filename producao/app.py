@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 from io import BytesIO
 from datetime import datetime
 
@@ -126,10 +127,34 @@ if arquivo:
     st.subheader("🏘️ Atendimentos por Bairro")
 
     bairro_counts = df_filtrado[COL_BAIRRO].value_counts()
-    bairro_counts = bairro_counts[bairro_counts >= 1]
+    bairro_counts = bairro_counts[bairro_counts >= 5]
 
     st.dataframe(bairro_counts)
-    st.bar_chart(bairro_counts)
+    
+    # Converte para DataFrame para usar no Plotly
+    df_bairros = bairro_counts.reset_index()
+    df_bairros.columns = ["Bairro", "Quantidade"]
+
+    # Cria o gráfico de colunas com o total acima
+    fig_bairros = px.bar(
+        df_bairros,
+        x="Bairro",
+        y="Quantidade",
+        text="Quantidade"
+    )
+    
+    # Posiciona o texto do lado de fora (acima) da coluna
+    fig_bairros.update_traces(textposition='outside')
+    
+    # Dá uma margem extra no topo para o número não cortar e inclina os textos
+    max_y = df_bairros["Quantidade"].max() if not df_bairros.empty else 10
+    fig_bairros.update_layout(
+        yaxis_range=[0, max_y * 1.15],
+        xaxis_tickangle=-45,
+        margin=dict(t=20)
+    )
+
+    st.plotly_chart(fig_bairros, use_container_width=True)
 
     # =========================
     # NOVO — PROCEDIMENTOS POR BAIRRO
