@@ -8,6 +8,10 @@ st.set_page_config(layout="wide")
 
 st.title("📊 Produção Técnica — Análise")
 
+# Inicializa o armazenamento das rotas na memória da sessão
+if 'rotas_personalizadas' not in st.session_state:
+    st.session_state['rotas_personalizadas'] = {}
+
 arquivo = st.file_uploader("Enviar arquivo Excel", type=["xlsx"])
 
 if arquivo:
@@ -92,10 +96,42 @@ if arquivo:
             if st.checkbox(s, value=marcar_todos_serv, key=f"serv_{s}"):
                 servicos_sel.append(s)
 
+    # --- NOVA SEÇÃO: CRIAR ROTAS ---
+    st.sidebar.header("🗺️ Criar Rotas")
+    with st.sidebar.expander("➕ Nova Rota de Atendimento"):
+        nome_nova_rota = st.text_input("Nome da Rota (ex: Rota Leste)")
+        bairros_unicos = sorted(df[COL_BAIRRO].unique())
+        bairros_selecionados_rota = st.multiselect("Selecione os Bairros da Rota", bairros_unicos)
+        
+        if st.button("Salvar Rota"):
+            if nome_nova_rota and bairros_selecionados_rota:
+                st.session_state['rotas_personalizadas'][nome_nova_rota] = bairros_selecionados_rota
+                st.success(f"Rota '{nome_nova_rota}' salva com sucesso!")
+            else:
+                st.warning("Preencha o nome e selecione pelo menos um bairro.")
+        
+        if st.session_state['rotas_personalizadas']:
+            st.markdown("---")
+            st.markdown("**Rotas Ativas:**")
+            for r_nome, r_bairros in st.session_state['rotas_personalizadas'].items():
+                st.markdown(f"- **{r_nome}**: {len(r_bairros)} bairros")
+            if st.button("Limpar Rotas"):
+                st.session_state['rotas_personalizadas'] = {}
+                st.rerun()
+
     df_filtrado = df[
         df[COL_TECNICO].isin(tecnicos_sel) &
         df[COL_SERVICO].isin(servicos_sel)
-    ]
+    ].copy()
+
+    # --- MAPEAMENTO DA ROTA NO DATAFRAME ---
+    def obter_rota(bairro):
+        for nome_rota, lista_bairros in st.session_state['rotas_personalizadas'].items():
+            if bairro in lista_bairros:
+                return nome_rota
+        return "Sem Rota Definida"
+
+    df_filtrado["ROTA_PERSONALIZADA"] = df_filtrado[COL_BAIRRO].apply(obter_rota)
 
     st.success(f"Registros filtrados: {len(df_filtrado)}")
 
@@ -187,6 +223,46 @@ if arquivo:
     )
 
     st.plotly_chart(fig_bairros, use_container_width=True)
+
+    # =========================
+    # NOVA SEÇÃO — PRODUÇÃO POR ROTA PERSONALIZADA
+    # =========================
+    
+    if st.session_state['rotas_personalizadas']:
+        st.subheader("🗺️ Atendimentos por Rota (Personalizada)")
+
+        rota_counts = df_filtrado["ROTA_PERSONALIZADA"].value_counts().reset_index()
+        rota_counts.columns = ["Rota", "Quantidade"]
+
+        total_somado_rotas = rota_counts["Quantidade"].sum()
+
+        fig_rotas = px.bar(
+            rota_counts,
+            x="Rota",
+            y="Quantidade",
+            text="Quantidade",
+            title=f"Total de procedimentos por Rota: {total_somado_rotas}"
+        )
+        
+        fig_rotas.update_traces(textposition='outside')
+        
+        max_y_rotas = rota_counts["Quantidade"].max() if not rota_counts.empty else 10
+        fig_rotas.update_layout(
+            yaxis_range=[0, max_y_rotas * 1.15],
+            xaxis_tickangle=-45,
+            margin=dict(t=40)
+        )
+
+        st.plotly_chart(fig_rotas, use_container_width=True)
+
+        # Matriz Técnico x Rota
+        st.markdown("**Matriz Técnico × Rota**")
+        matriz_rota = pd.crosstab(
+            df_filtrado[COL_TECNICO],
+            df_filtrado["ROTA_PERSONALIZADA"],
+            margins=True, margins_name="TOTAL"
+        )
+        st.dataframe(matriz_rota, use_container_width=True)
 
     # =========================
     # NOVO — PROCEDIMENTOS POR BAIRRO
