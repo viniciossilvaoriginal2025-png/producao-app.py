@@ -3,14 +3,34 @@ import pandas as pd
 import plotly.express as px
 from io import BytesIO
 from datetime import datetime
+import json
+import os
 
 st.set_page_config(layout="wide")
 
 st.title("📊 Produção Técnica — Análise")
 
-# Inicializa o armazenamento das rotas na memória da sessão
+# =========================
+# GERENCIAMENTO DE ROTAS (PERSISTÊNCIA EM ARQUIVO)
+# =========================
+ARQUIVO_ROTAS = 'rotas_personalizadas.json'
+
+def carregar_rotas():
+    if os.path.exists(ARQUIVO_ROTAS):
+        try:
+            with open(ARQUIVO_ROTAS, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def salvar_rotas(rotas):
+    with open(ARQUIVO_ROTAS, 'w', encoding='utf-8') as f:
+        json.dump(rotas, f, ensure_ascii=False, indent=4)
+
+# Inicializa o armazenamento das rotas carregando do arquivo
 if 'rotas_personalizadas' not in st.session_state:
-    st.session_state['rotas_personalizadas'] = {}
+    st.session_state['rotas_personalizadas'] = carregar_rotas()
 
 arquivo = st.file_uploader("Enviar arquivo Excel", type=["xlsx"])
 
@@ -113,6 +133,7 @@ if arquivo:
                     "bairros": bairros_selecionados_rota,
                     "qtd_tecnicos": qtd_tecnicos
                 }
+                salvar_rotas(st.session_state['rotas_personalizadas']) # Salva no arquivo
                 st.success(f"Rota '{nome_nova_rota}' salva com sucesso!")
                 st.rerun()
             else:
@@ -157,6 +178,7 @@ if arquivo:
                                 "bairros": edit_bairros,
                                 "qtd_tecnicos": edit_qtd
                             }
+                            salvar_rotas(st.session_state['rotas_personalizadas']) # Salva no arquivo
                             st.success("Rota atualizada!")
                             st.rerun()
                         else:
@@ -165,6 +187,7 @@ if arquivo:
                 with col_excluir:
                     if st.button("Excluir"):
                         del st.session_state['rotas_personalizadas'][rota_para_editar]
+                        salvar_rotas(st.session_state['rotas_personalizadas']) # Salva no arquivo
                         st.success("Rota excluída!")
                         st.rerun()
 
@@ -182,6 +205,7 @@ if arquivo:
             
         if st.sidebar.button("Limpar Todas as Rotas"):
             st.session_state['rotas_personalizadas'] = {}
+            salvar_rotas(st.session_state['rotas_personalizadas']) # Salva no arquivo (limpa ele)
             st.rerun()
 
     df_filtrado = df[
