@@ -119,7 +119,21 @@ if arquivo:
             max_value=max_date
         )
 
-        if start_date > end_date:
+        if start_date <= end_date:
+            # Gera todos os dias dentro do intervalo selecionado
+            dias_no_intervalo = pd.date_range(start=start_date, end=end_date).date.tolist()
+            dias_formatados = [d.strftime("%d/%m/%Y") for d in dias_no_intervalo]
+            
+            dias_selecionados_str = st.multiselect(
+                "Dias a incluir (remova para ignorar):",
+                options=dias_formatados,
+                default=dias_formatados,
+                help="Todos os dias do intervalo começam marcados. Clique no 'X' para remover dias específicos (ex: finais de semana)."
+            )
+            
+            dias_validos = [datetime.strptime(d, "%d/%m/%Y").date() for d in dias_selecionados_str]
+        else:
+            dias_validos = []
             st.error("⚠️ A Data Inicial não pode ser maior que a Data Final.")
         
         incluir_vazios = st.checkbox("Incluir registros sem data de fechamento", value=True)
@@ -146,17 +160,13 @@ if arquivo:
                 servicos_sel.append(s)
 
     # --- LÓGICA DE APLICAÇÃO DOS FILTROS ---
-    # Ajusta as horas para pegar o dia inteiro
-    start_dt = pd.to_datetime(start_date)
-    end_dt = pd.to_datetime(end_date) + pd.Timedelta(days=1, seconds=-1)
-
     mask_tecnico = df[COL_TECNICO].isin(tecnicos_sel)
     mask_servico = df[COL_SERVICO].isin(servicos_sel)
     
     if incluir_vazios:
-        mask_data = ((df[COL_FECH] >= start_dt) & (df[COL_FECH] <= end_dt)) | df[COL_FECH].isna()
+        mask_data = df[COL_FECH].dt.date.isin(dias_validos) | df[COL_FECH].isna()
     else:
-        mask_data = (df[COL_FECH] >= start_dt) & (df[COL_FECH] <= end_dt)
+        mask_data = df[COL_FECH].dt.date.isin(dias_validos)
 
     df_filtrado = df[mask_tecnico & mask_servico & mask_data].copy()
 
