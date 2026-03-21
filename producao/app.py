@@ -335,7 +335,7 @@ if arquivo:
         tab_tec = tab_tec.reindex(index=ordem_tec + ["TOTAL"]).fillna(0).astype(int)
         st.dataframe(tab_tec, use_container_width=True)
 
-        # Gráfico colorido por Status
+        # Gráfico colorido por Status (Lado a Lado)
         total_somado_tec = df_tecnicos_status["Quantidade"].sum()
         fig_tecnicos = px.bar(
             df_tecnicos_status,
@@ -348,8 +348,8 @@ if arquivo:
             color_discrete_map=CORES_STATUS
         )
         
-        fig_tecnicos.update_traces(textposition='inside')
-        fig_tecnicos.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+        fig_tecnicos.update_traces(textposition='outside')
+        fig_tecnicos.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='group')
         st.plotly_chart(fig_tecnicos, use_container_width=True)
 
     # =========================
@@ -384,7 +384,7 @@ if arquivo:
             tab_bairros = tab_bairros.reindex(index=bairros_validos + ["TOTAL"]).fillna(0).astype(int)
             st.dataframe(tab_bairros, use_container_width=True)
 
-            # Gráfico colorido
+            # Gráfico colorido (Lado a Lado)
             total_somado_bairros = df_bairros_status["Quantidade"].sum()
             fig_bairros = px.bar(
                 df_bairros_status,
@@ -397,8 +397,8 @@ if arquivo:
                 color_discrete_map=CORES_STATUS
             )
             
-            fig_bairros.update_traces(textposition='inside')
-            fig_bairros.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+            fig_bairros.update_traces(textposition='outside')
+            fig_bairros.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='group')
             st.plotly_chart(fig_bairros, use_container_width=True)
 
     # =========================
@@ -425,8 +425,8 @@ if arquivo:
                 color_discrete_map=CORES_STATUS
             )
             
-            fig_rotas.update_traces(textposition='inside')
-            fig_rotas.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+            fig_rotas.update_traces(textposition='outside')
+            fig_rotas.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='group')
             st.plotly_chart(fig_rotas, use_container_width=True)
 
         # Matriz Técnico x Rota
@@ -475,8 +475,8 @@ if arquivo:
                 category_orders={COL_SERVICO: ordem_proc}, 
                 color_discrete_map=CORES_STATUS
             )
-            fig_proc.update_traces(textposition='inside')
-            fig_proc.update_layout(barmode='stack')
+            fig_proc.update_traces(textposition='outside')
+            fig_proc.update_layout(barmode='group')
             st.plotly_chart(fig_proc, use_container_width=True)
 
     # =========================
@@ -526,8 +526,8 @@ if arquivo:
                 category_orders={COL_BAIRRO: ordem_bairros_tec},
                 color_discrete_map=CORES_STATUS
             )
-            fig_rota.update_traces(textposition='inside')
-            fig_rota.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='stack')
+            fig_rota.update_traces(textposition='outside')
+            fig_rota.update_layout(xaxis_tickangle=-45, margin=dict(t=40), barmode='group')
             st.plotly_chart(fig_rota, use_container_width=True)
 
     # =========================
