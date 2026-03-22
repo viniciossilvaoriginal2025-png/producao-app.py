@@ -373,7 +373,7 @@ if arquivo:
     if not df_filtrado.empty:
         # Filtrar bairros com >= 5 atendimentos no total
         bairro_totals = df_filtrado[COL_BAIRRO].value_counts()
-        bairros_validos = bairro_totals[bairro_totals >= 5].index.tolist()
+        bairros_validos = bairro_totals[bairro_totals >= 1].index.tolist()
         df_bairros_filtrado = df_filtrado[df_filtrado[COL_BAIRRO].isin(bairros_validos)]
 
         if not df_bairros_filtrado.empty:
